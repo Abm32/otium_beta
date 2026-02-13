@@ -92,6 +92,7 @@ Home Screen → Alert Screen → Breathing Screen → Dashboard → Home Screen
 - **Dart SDK**: Version 3.0 or higher
 - **Android Studio** / **Xcode** (for mobile development)
 - **Git**: For cloning the repository
+- **Android Device/Emulator**: For Phase 1 real sensing (requires Android 5.0+)
 
 ### Installation
 
@@ -113,7 +114,7 @@ Home Screen → Alert Screen → Breathing Screen → Dashboard → Home Screen
 
 4. **Run the app**
    
-   **For Android:**
+   **For Android (Recommended for Phase 1):**
    ```bash
    flutter run
    ```
@@ -123,10 +124,29 @@ Home Screen → Alert Screen → Breathing Screen → Dashboard → Home Screen
    flutter run -d ios
    ```
    
-   **For Web:**
+   **For Web (Simulated mode only):**
    ```bash
    flutter run -d chrome
    ```
+
+### Phase 1: Enable Real Sensing
+
+To use real cognitive overload detection:
+
+1. **Grant Usage Access Permission**
+   - Open app and tap "Enable Real Sensing"
+   - Navigate to: Settings → Apps → Special Access → Usage Access
+   - Enable permission for Otium
+
+2. **Enable Background Monitoring**
+   - In app settings, toggle "Background Monitoring"
+   - App will check cognitive overload every 30 minutes
+
+3. **Use Your Phone Normally**
+   - Real metrics will be collected passively
+   - View real-time overload scores on home screen
+
+See [PHASE1_IMPLEMENTATION.md](PHASE1_IMPLEMENTATION.md) for detailed setup.
 
 ### Building for Production
 
@@ -226,7 +246,28 @@ score = (0.4 × unlocks) + (0.4 × appSwitches) + (0.2 × nightMinutes)
 - **Language**: Dart 3.0+
 - **State Management**: Provider (ChangeNotifier)
 - **Testing**: flutter_test, integration_test
+- **Background Tasks**: workmanager (Phase 1)
+- **Real Sensing**: usage_stats, permission_handler (Phase 1)
+- **Local Storage**: shared_preferences (Phase 1)
 - **Platforms**: Android, iOS, Web, Windows, macOS, Linux
+
+### Phase 1 Architecture
+
+```
+lib/
+├── core/                          # Real sensing infrastructure
+│   ├── phenotyping/               # Digital phenotyping engine
+│   │   ├── usage_collector.dart   # Android UsageStats integration
+│   │   ├── overload_engine.dart   # Scientific computation
+│   │   └── intervention_trigger.dart # Smart timing
+│   ├── background/
+│   │   └── background_monitor.dart # Periodic monitoring
+│   └── services/
+│       └── real_sensing_service.dart # Integration layer
+├── logic/                         # Business logic (original)
+├── screens/                       # UI screens
+└── widgets/                       # Reusable components
+```
 
 ## 📱 Platform Support
 
@@ -240,6 +281,46 @@ score = (0.4 × unlocks) + (0.4 × appSwitches) + (0.2 × nightMinutes)
 | Linux    | ⚠️ Untested | Should work with Flutter 3.0+ |
 
 ## 🎯 Future Enhancements
+
+### ✅ Phase 1: Real Cognitive Overload Detection (IMPLEMENTED)
+
+**Status**: Complete - See [PHASE1_IMPLEMENTATION.md](PHASE1_IMPLEMENTATION.md) for details
+
+Phase 1 transforms Otium from a simulated demo into a real digital wellness system with:
+
+- ✅ **Real Device Sensing**: Android UsageStats API integration for actual app switching, unlocks, and night usage
+- ✅ **Scientific Computation**: Evidence-based overload formula with detailed breakdown
+- ✅ **Background Monitoring**: Passive detection every 30 minutes using workmanager
+- ✅ **Smart Intervention Timing**: Rate limiting (6/day, 2hr intervals) to prevent fatigue
+- ✅ **Privacy-First Architecture**: All data stays on-device, no cloud uploads
+- ✅ **Historical Tracking**: 24-hour score history for trend analysis
+
+**Key Components**:
+- `UsageCollector`: Real device usage data collection
+- `OverloadEngine`: Cognitive overload computation
+- `InterventionTrigger`: Smart timing and rate limiting
+- `BackgroundMonitor`: Periodic passive monitoring
+- `RealSensingService`: Integration layer for UI
+
+**How to Use**:
+```dart
+// Initialize real sensing
+final service = await RealSensingService.create();
+await service.initialize();
+
+// Get real metrics
+final metrics = await service.getCurrentMetrics();
+print('Real overload score: ${metrics['score']}');
+
+// Enable background monitoring
+await service.setBackgroundMonitoring(true);
+```
+
+See [PHASE1_IMPLEMENTATION.md](PHASE1_IMPLEMENTATION.md) for complete documentation.
+
+---
+
+### 🔮 Phase 2: Enhanced Sensing & Personalization
 
 - [ ] Real device tracking (actual phone unlocks, app switches)
 - [ ] Historical data visualization with charts
