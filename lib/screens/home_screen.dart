@@ -45,14 +45,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     ));
     
     _slideController.forward();
-    
-    // Initialize real sensing on first launch
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final appState = Provider.of<AppState>(context, listen: false);
-      if (!appState.useRealSensing) {
-        _showRealSensingPrompt();
-      }
-    });
   }
 
   @override
@@ -70,68 +62,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkNavigationToAlert();
     });
-  }
-
-  void _showRealSensingPrompt() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4A90A4).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.psychology_rounded,
-                color: Color(0xFF4A90A4),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Enable Real Sensing?',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Otium can detect real cognitive overload using your device usage patterns. This provides more accurate insights than simulated data.\n\nAll data stays on your device.',
-          style: TextStyle(fontSize: 16, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Maybe Later',
-              style: TextStyle(color: Color(0xFF6B7280)),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final appState = Provider.of<AppState>(context, listen: false);
-              await appState.initializeRealSensing();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4A90A4),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Enable'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _checkNavigationToAlert() {

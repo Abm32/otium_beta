@@ -3,7 +3,6 @@ import 'cognitive_metrics.dart';
 import 'intervention_session.dart';
 import 'overload_calculator.dart';
 import '../core/services/real_sensing_service.dart';
-import '../core/services/real_sensing_service.dart';
 
 /// Central state management class for the Otium app.
 ///

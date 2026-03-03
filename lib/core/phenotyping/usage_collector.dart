@@ -1,5 +1,4 @@
 import 'package:usage_stats/usage_stats.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 
 /// Collects real device usage data from Android UsageStats API
@@ -11,16 +10,23 @@ import 'dart:async';
 class UsageCollector {
   /// Request necessary permissions for usage stats access
   Future<bool> requestPermissions() async {
-    // Check if usage access permission is granted
-    final status = await Permission.appTrackingTransparency.status;
-    
-    if (status.isDenied) {
-      // Request permission
-      final result = await Permission.appTrackingTransparency.request();
-      return result.isGranted;
+    try {
+      // Check if usage access permission is granted
+      bool isGranted = await UsageStats.checkUsagePermission() ?? false;
+      
+      if (!isGranted) {
+        // Request permission by opening settings
+        await UsageStats.grantUsagePermission();
+        
+        // Check again after user potentially grants permission
+        isGranted = await UsageStats.checkUsagePermission() ?? false;
+      }
+      
+      return isGranted;
+    } catch (e) {
+      print('Error requesting usage permissions: $e');
+      return false;
     }
-    
-    return status.isGranted;
   }
 
   /// Collect usage data for the specified time range

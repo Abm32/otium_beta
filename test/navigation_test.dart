@@ -12,9 +12,12 @@ void main() {
     testWidgets('App starts with HomeScreen as initial route', (WidgetTester tester) async {
       await tester.pumpWidget(const OtiumApp());
       
-      // Verify HomeScreen is displayed
+      // Wait for animations and async operations
+      await tester.pumpAndSettle();
+      
+      // Verify HomeScreen is displayed with new premium UI
       expect(find.byType(HomeScreen), findsOneWidget);
-      expect(find.text('Monitor Your Cognitive Load'), findsOneWidget);
+      expect(find.text('Cognitive Load Monitor'), findsOneWidget);
     });
 
     testWidgets('Route arguments are passed correctly to AlertScreen', (WidgetTester tester) async {
@@ -49,7 +52,7 @@ void main() {
 
     testWidgets('Dashboard screen displays with session data', (WidgetTester tester) async {
       // Create app state with a completed session
-      final appState = AppState();
+      final appState = AppState(autoInitialize: false);
       appState.startIntervention();
       appState.completeIntervention(null);
       
@@ -62,6 +65,9 @@ void main() {
         ),
       );
       
+      // Wait for animations and async operations
+      await tester.pumpAndSettle();
+      
       // Verify DashboardScreen is displayed
       expect(find.byType(DashboardScreen), findsOneWidget);
       expect(find.text('Great Job! 🎉'), findsOneWidget);
@@ -69,6 +75,9 @@ void main() {
 
     testWidgets('All named routes are defined in main app', (WidgetTester tester) async {
       await tester.pumpWidget(const OtiumApp());
+      
+      // Wait for animations and async operations
+      await tester.pumpAndSettle();
       
       // Get the MaterialApp widget
       final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));

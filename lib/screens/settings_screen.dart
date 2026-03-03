@@ -151,7 +151,35 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
               value: appState.useRealSensing,
               onChanged: (value) async {
                 if (value && !appState.useRealSensing) {
-                  await appState.initializeRealSensing();
+                  // Show loading indicator
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const AlertDialog(
+                      content: Row(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(width: 16),
+                          Text('Initializing real sensing...'),
+                        ],
+                      ),
+                    ),
+                  );
+                  
+                  try {
+                    await appState.initializeRealSensing();
+                    if (mounted) Navigator.pop(context);
+                    
+                    if (!appState.useRealSensing && mounted) {
+                      // Show permission dialog if initialization failed
+                      _showPermissionDialog();
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      Navigator.pop(context);
+                      _showPermissionDialog();
+                    }
+                  }
                 } else {
                   appState.toggleSensingMode();
                 }
@@ -238,7 +266,36 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
               value: appState.backgroundMonitoringEnabled,
               onChanged: appState.useRealSensing
                   ? (value) async {
-                      await appState.setBackgroundMonitoring(value);
+                      try {
+                        await appState.setBackgroundMonitoring(value);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(value 
+                                  ? 'Background monitoring enabled'
+                                  : 'Background monitoring disabled'),
+                              backgroundColor: const Color(0xFF4A90A4),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to ${value ? 'enable' : 'disable'} background monitoring'),
+                              backgroundColor: const Color(0xFFEF4444),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          );
+                        }
+                      }
                     }
                   : null,
               activeColor: const Color(0xFF4A90A4),
@@ -600,5 +657,71 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
     if (score < 30) return const Color(0xFF10B981); // Green
     if (score <= 60) return const Color(0xFFF59E0B); // Yellow
     return const Color(0xFFEF4444); // Red
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.security_rounded,
+                color: Color(0xFFF59E0B),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Permission Required',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Otium needs access to usage statistics to detect real cognitive overload patterns.\n\n'
+          'This permission allows the app to:\n'
+          '• Monitor app switching frequency\n'
+          '• Track screen time sessions\n'
+          '• Detect night usage patterns\n\n'
+          'All data stays on your device and is never shared.',
+          style: TextStyle(fontSize: 16, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF6B7280)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final appState = Provider.of<AppState>(context, listen: false);
+              await appState.initializeRealSensing();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4A90A4),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Grant Permission'),
+          ),
+        ],
+      ),
+    );
   }
 }

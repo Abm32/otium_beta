@@ -9,7 +9,7 @@ void main() {
     late AppState appState;
 
     setUp(() {
-      appState = AppState();
+      appState = AppState(autoInitialize: false);
     });
 
     /// Test rendering with high score
@@ -48,6 +48,9 @@ void main() {
       const highScore = 80.0;
       bool navigationCalled = false;
 
+      // Set a larger test surface to accommodate the UI
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+
       await tester.pumpWidget(
         ChangeNotifierProvider<AppState>.value(
           value: appState,
@@ -63,11 +66,20 @@ void main() {
         ),
       );
 
+      // Wait for animations and layout
+      await tester.pumpAndSettle();
+
       // Verify initial state
       expect(appState.currentSession, isNull);
 
+      // Scroll to make sure the button is visible
+      await tester.scrollUntilVisible(
+        find.text('Start Breathing Exercise'),
+        500.0,
+      );
+
       // Tap the Start Breathing Exercise button
-      await tester.tap(find.text('Start Breathing Exercise'));
+      await tester.tap(find.text('Start Breathing Exercise'), warnIfMissed: false);
       await tester.pumpAndSettle();
 
       // Verify startIntervention was called
@@ -76,6 +88,9 @@ void main() {
 
       // Verify navigation occurred
       expect(navigationCalled, isTrue);
+      
+      // Reset surface size
+      await tester.binding.setSurfaceSize(null);
     });
 
     /// Test return to home button
