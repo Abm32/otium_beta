@@ -34,6 +34,23 @@ class AppState extends ChangeNotifier {
   /// Last time metrics were refreshed from real sensing
   DateTime? _lastRealSensingUpdate;
 
+  /// Whether to auto-initialize real sensing (disabled in tests)
+  final bool _autoInitialize;
+
+  /// Constructor with optional auto-initialization
+  AppState({bool autoInitialize = true}) : _autoInitialize = autoInitialize {
+    if (_autoInitialize) {
+      _autoInitializeRealSensing();
+    }
+  }
+
+  /// Automatically initialize real sensing on app start
+  Future<void> _autoInitializeRealSensing() async {
+    // Delay to allow UI to load first
+    await Future.delayed(const Duration(milliseconds: 500));
+    await initializeRealSensing();
+  }
+
   /// Initialize real sensing service
   Future<void> initializeRealSensing() async {
     try {

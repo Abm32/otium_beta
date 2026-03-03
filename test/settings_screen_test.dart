@@ -9,7 +9,7 @@ void main() {
     late AppState appState;
 
     setUp(() {
-      appState = AppState();
+      appState = AppState(autoInitialize: false);
     });
 
     /// Test basic rendering
