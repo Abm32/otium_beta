@@ -2,16 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../logic/app_state.dart';
 import '../widgets/cognitive_meter.dart';
+import 'settings_screen.dart';
 
-/// Home screen displaying current cognitive overload status and metrics.
-///
-/// This screen shows:
-/// - CognitiveMeter widget with current score
-/// - Current metric values (unlocks, app switches, night minutes)
-/// - "Simulate App Switch" button for demo purposes
-/// - Auto-navigation to AlertScreen when score > 60
-///
-/// Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 4.1, 8.1, 8.2
+/// Premium home screen with real sensing integration and enhanced UI
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -19,29 +12,132 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late AnimationController _slideController;
+  late Animation<double> _pulseAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _pulseController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    _slideController.forward();
+    
+    // Initialize real sensing on first launch
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final appState = Provider.of<AppState>(context, listen: false);
+      if (!appState.useRealSensing) {
+        _showRealSensingPrompt();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _slideController.dispose();
+    super.dispose();
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     
     // Check if we need to navigate to AlertScreen
-    // This runs after the widget is built, so we can safely navigate
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkNavigationToAlert();
     });
   }
 
-  /// Checks if the score exceeds threshold and navigates to AlertScreen.
-  ///
-  /// This method is called after each build to check if auto-navigation
-  /// should occur when the overload score exceeds 60.
-  ///
-  /// Validates: Requirements 4.1, 8.2
+  void _showRealSensingPrompt() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4A90A4).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.psychology_rounded,
+                color: Color(0xFF4A90A4),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Enable Real Sensing?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Otium can detect real cognitive overload using your device usage patterns. This provides more accurate insights than simulated data.\n\nAll data stays on your device.',
+          style: TextStyle(fontSize: 16, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Maybe Later',
+              style: TextStyle(color: Color(0xFF6B7280)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final appState = Provider.of<AppState>(context, listen: false);
+              await appState.initializeRealSensing();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4A90A4),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Enable'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _checkNavigationToAlert() {
     final appState = Provider.of<AppState>(context, listen: false);
     
     if (appState.currentScore > 60) {
-      // Navigate to AlertScreen
       Navigator.of(context).pushNamed(
         '/alert',
         arguments: appState.currentScore,
@@ -52,303 +148,470 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Otium'),
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: 0,
-      ),
+      backgroundColor: const Color(0xFFF8FAFB),
       body: Consumer<AppState>(
         builder: (context, appState, child) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Welcome message with enhanced styling
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Monitor Your Cognitive Load',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Track your app usage and manage cognitive overload',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 20),
-                
-                // Cognitive Meter widget
-                CognitiveMeter(
-                  score: appState.currentScore,
-                  classification: appState.classification,
-                ),
-                
-                const SizedBox(height: 32),
-                
-                // Current metrics display with enhanced styling
-                Card(
-                  elevation: 4,
-                  shadowColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
+          return CustomScrollView(
+            slivers: [
+              // Premium App Bar
+              SliverAppBar(
+                expandedHeight: 120,
+                floating: false,
+                pinned: true,
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Theme.of(context).colorScheme.surface,
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
-                        ],
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.analytics_outlined,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 24,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Current Metrics',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                          
-                          // Unlocks metric
-                          _buildMetricRow(
-                            context,
-                            icon: Icons.lock_open_rounded,
-                            label: 'Device Unlocks',
-                            value: appState.metrics.unlocks.toString(),
-                            color: const Color(0xFF4A90A4),
-                          ),
-                          const SizedBox(height: 16),
-                          
-                          // App switches metric
-                          _buildMetricRow(
-                            context,
-                            icon: Icons.swap_horiz_rounded,
-                            label: 'App Switches',
-                            value: appState.metrics.appSwitches.toString(),
-                            color: const Color(0xFF7FB069),
-                          ),
-                          const SizedBox(height: 16),
-                          
-                          // Night minutes metric
-                          _buildMetricRow(
-                            context,
-                            icon: Icons.nightlight_round,
-                            label: 'Night Minutes',
-                            value: appState.metrics.nightMinutes.toString(),
-                            color: const Color(0xFF9C88FF),
-                          ),
+                          Color(0xFF4A90A4),
+                          Color(0xFF7FB069),
                         ],
                       ),
                     ),
                   ),
+                  title: const Text(
+                    'Otium',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 28,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  centerTitle: false,
                 ),
-                
-                const SizedBox(height: 32),
-                
-                // Simulate App Switch button with enhanced styling
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      appState.simulateAppSwitch();
-                      // Check navigation after state update
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _checkNavigationToAlert();
-                      });
-                    },
-                    icon: const Icon(Icons.phone_android_rounded, size: 28),
-                    label: const Text(
-                      'Simulate App Switch',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
+                actions: [
+                  Container(
+                    margin: const EdgeInsets.only(right: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 20,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      elevation: 0, // Remove default elevation since we have custom shadow
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: 20),
-                
-                // Info text with enhanced styling
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Tap the button to simulate app switching behavior and increase your cognitive load metrics.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            height: 1.4,
+                    child: IconButton(
+                      icon: const Icon(Icons.settings_rounded, color: Colors.white),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const SettingsScreen(),
                           ),
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              
+              // Content
+              SliverToBoxAdapter(
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Status Card
+                        _buildStatusCard(appState),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Cognitive Meter
+                        _buildCognitiveMeterCard(appState),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Metrics Grid
+                        _buildMetricsGrid(appState),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Action Button
+                        _buildActionButton(appState),
+                        
+                        const SizedBox(height: 40),
+                      ],
+                    ),
                   ),
                 ),
-                
-                const SizedBox(height: 20),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
     );
   }
 
-  /// Builds a row displaying a single metric with icon, label, and value.
-  ///
-  /// Parameters:
-  /// - [context]: Build context
-  /// - [icon]: Icon to display
-  /// - [label]: Metric label text
-  /// - [value]: Metric value text
-  /// - [color]: Color for the icon
-  Widget _buildMetricRow(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
+  Widget _buildStatusCard(AppState appState) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 1,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
+              color: appState.useRealSensing 
+                  ? const Color(0xFF10B981).withOpacity(0.1)
+                  : const Color(0xFFF59E0B).withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              icon,
-              color: color,
-              size: 28,
+              appState.useRealSensing ? Icons.sensors_rounded : Icons.play_circle_rounded,
+              color: appState.useRealSensing 
+                  ? const Color(0xFF10B981)
+                  : const Color(0xFFF59E0B),
+              size: 24,
             ),
           ),
-          const SizedBox(width: 20),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurface,
+                  appState.useRealSensing ? 'Real Sensing Active' : 'Demo Mode',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Current count',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  appState.useRealSensing
+                      ? 'Monitoring your device usage patterns'
+                      : 'Using simulated data for demonstration',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF6B7280),
                   ),
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
+          if (appState.useRealSensing)
+            IconButton(
+              onPressed: () => appState.refreshMetricsFromRealSensing(),
+              icon: const Icon(
+                Icons.refresh_rounded,
+                color: Color(0xFF4A90A4),
               ),
+              tooltip: 'Refresh metrics',
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCognitiveMeterCard(AppState appState) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4A90A4).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.psychology_rounded,
+                  color: Color(0xFF4A90A4),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Cognitive Load Monitor',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1F2937),
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          ScaleTransition(
+            scale: _pulseAnimation,
+            child: CognitiveMeter(
+              score: appState.currentScore,
+              classification: appState.classification,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMetricsGrid(AppState appState) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4A90A4).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.analytics_rounded,
+                color: Color(0xFF4A90A4),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Usage Metrics',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1F2937),
+                letterSpacing: -0.3,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCard(
+                icon: Icons.lock_open_rounded,
+                label: 'Unlocks',
+                value: appState.metrics.unlocks.toString(),
+                color: const Color(0xFF4A90A4),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildMetricCard(
+                icon: Icons.swap_horiz_rounded,
+                label: 'App Switches',
+                value: appState.metrics.appSwitches.toString(),
+                color: const Color(0xFF7FB069),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildMetricCard(
+          icon: Icons.nightlight_round,
+          label: 'Night Usage (minutes)',
+          value: appState.metrics.nightMinutes.toString(),
+          color: const Color(0xFF8B5CF6),
+          isWide: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+    bool isWide = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: isWide
+          ? Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildActionButton(AppState appState) {
+    if (appState.useRealSensing) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF10B981).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF10B981).withOpacity(0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: Color(0xFF10B981),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Real sensing is monitoring your device usage patterns automatically.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF065F46),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF4A90A4),
+            Color(0xFF7FB069),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4A90A4).withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () {
+          appState.simulateAppSwitch();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _checkNavigationToAlert();
+          });
+        },
+        icon: const Icon(Icons.phone_android_rounded, size: 24, color: Colors.white),
+        label: const Text(
+          'Simulate App Switch',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
       ),
     );
   }

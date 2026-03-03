@@ -5,8 +5,14 @@ import 'screens/home_screen.dart';
 import 'screens/alert_screen.dart';
 import 'screens/breathing_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'core/background/background_monitor.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize background monitoring for real sensing
+  await BackgroundMonitor.initialize();
+  
   runApp(const OtiumApp());
 }
 

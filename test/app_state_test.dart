@@ -14,6 +14,15 @@ void main() {
         expect(appState.currentSession, isNull);
       });
 
+      test('initializes with simulated sensing mode', () {
+        final appState = AppState();
+        
+        expect(appState.useRealSensing, isFalse);
+        expect(appState.backgroundMonitoringEnabled, isFalse);
+        expect(appState.sensingMode, equals('Simulated'));
+        expect(appState.lastRealSensingUpdate, isNull);
+      });
+
       test('currentScore is 0 with zero metrics', () {
         final appState = AppState();
         expect(appState.currentScore, equals(0.0));
@@ -474,6 +483,69 @@ void main() {
           reason: 'Session should record correct post-score'
         );
       }
+    });
+
+    group('real sensing mode', () {
+      test('toggleSensingMode switches between real and simulated', () {
+        final appState = AppState();
+        
+        expect(appState.useRealSensing, isFalse);
+        expect(appState.sensingMode, equals('Simulated'));
+        
+        appState.toggleSensingMode();
+        
+        expect(appState.useRealSensing, isTrue);
+        expect(appState.sensingMode, equals('Real'));
+        
+        appState.toggleSensingMode();
+        
+        expect(appState.useRealSensing, isFalse);
+        expect(appState.sensingMode, equals('Simulated'));
+      });
+
+      test('simulateAppSwitch only works in simulated mode', () {
+        final appState = AppState();
+        
+        // In simulated mode - should work
+        expect(appState.useRealSensing, isFalse);
+        appState.simulateAppSwitch();
+        expect(appState.metrics.unlocks, equals(3));
+        expect(appState.metrics.appSwitches, equals(2));
+        
+        // Switch to real mode
+        appState.toggleSensingMode();
+        expect(appState.useRealSensing, isTrue);
+        
+        // Reset metrics
+        appState.metrics.unlocks = 0;
+        appState.metrics.appSwitches = 0;
+        
+        // In real mode - should not work
+        appState.simulateAppSwitch();
+        expect(appState.metrics.unlocks, equals(0));
+        expect(appState.metrics.appSwitches, equals(0));
+      });
+
+      test('getScoreHistory returns empty list when no service', () async {
+        final appState = AppState();
+        
+        final history = await appState.getScoreHistory();
+        expect(history, isEmpty);
+      });
+
+      test('getInterventionStats returns null when no service', () async {
+        final appState = AppState();
+        
+        final stats = await appState.getInterventionStats();
+        expect(stats, isNull);
+      });
+
+      test('isRealSensingAvailable returns false when no service', () async {
+        final appState = AppState();
+        
+        final available = await appState.isRealSensingAvailable();
+        expect(available, isFalse);
+      });
     });
   });
 }
